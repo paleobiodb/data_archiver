@@ -1,21 +1,29 @@
 from flask import Flask, request, make_response, jsonify
 
+# Name the WSGI application
 app = Flask(__name__)
 
+# Data archive storage location
+DATA_PATH = '~/scratch/archive-test'
+
 def responder(msg, status):
+    """Format a JSON response."""
     return make_response(jsonify({'message': msg,
                                   'status': status}), status)
 
 
 @app.errorhandler(404)
 def not_found(error):
+    """Return an error if route does not exist."""
     return make_response(jsonify({'message': 'Not found',
                                  'status': 404}, 404))
 
 
 @app.route('/')
 def index():
-    return 'PBDB data archive system'
+    """Root path, server listening check."""
+    return responder('PBDB data archive system operational', 200)
+
 
 
 @app.route('/info')
@@ -24,11 +32,22 @@ def info():
     return 'Info route'
 
 
-@app.route('/retrieve')
+@app.route('/retrieve', methods=['GET'])
 def retrieve():
     """Retrieve an existing archive by DOI reference."""
+    from flask import send_from_directory
+
     doi = request.args.get('doi', default='None', type=str)
-    return 'Retrieving DOI {0:s}'.format(doi)
+    
+    if doi:
+        #XXX lookup filename by doi
+        filename = doi
+
+        return send_from_directory(DATA_PATH,
+                                   filename,
+                                   as_attachment=True,
+                                   attachment_filename=filename,
+                                   mimetype='application/x-compressed')
 
 
 @app.route('/create', methods=['PUT'])
@@ -74,6 +93,7 @@ def create():
         filename = '.'.join([md5(uri.encode()).hexdigest()[:8], file_ext])
 
         # Use cURL to retrive the dataset
+        realpath = '/'.join([DATA_PATH, filename])
         syscall = subprocess.run(['curl', '-s', uri, '-o', filename])
         if syscall.returncode != 0:
             return responder('Server error', 500)
