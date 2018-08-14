@@ -34,34 +34,24 @@ def retrieve():
     doi = request.args.get('doi', default='None', type=str).lower()
     
     if doi:
-        # Match the DOI to the archive filename on disk
+        # Load DOI:filename map from database
         doi_map = aux.archive_names()
 
+        # Match the DOI to the archive filename on disk
         if doi in doi_map.keys():
-            return doi_map[doi]
+            filename = doi_map[doi]
+            return send_from_directory(datapath,
+                                       filename,
+                                       as_attachment=True,
+                                       attachment_filename=filename,
+                                       mimetype='application/x-compressed')
+
         else:
-            return aux.responder('Invalid or unspecified doi', 400)
+            return aux.responder('Invalid DOI', 400)
 
     else:
-        return aux.responder('Invalid or unspecified doi', 400)
+        return aux.responder('Unspecified DOI', 400)
 
-
-        
-        #  for archive in archives:
-        #      try:
-        #          if doi.lower() == archive.get('doi').lower():
-        #              filename = archive.get('filename')
-        #      except AttributeError:
-        #          continue
-
-
-
-
-    #      return send_from_directory(datapath,
-    #                                 filename,
-    #                                 as_attachment=True,
-    #                                 attachment_filename=filename,
-    #                                 mimetype='application/x-compressed')
 
     #  return aux.responder('Invalid or unspecified doi', 400)
 
