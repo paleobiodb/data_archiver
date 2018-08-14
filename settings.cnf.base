@@ -1,0 +1,8 @@
+[client]
+host='localhost'
+database='pbdb'
+user=
+password=
+
+[environment]
+storage=
