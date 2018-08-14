@@ -16,6 +16,25 @@ def archive_location():
     return config['environment']['storage']
 
 
+def archive_names():
+    """Return a hash of DOIs and actual filenames."""
+    import MySQLdb
+
+    db_handle = MySQLdb.connect(read_default_file='./settings.cnf')
+
+    cursor = db_handle.cursor()
+    sql = """SELECT doi, filename
+             FROM data_archives;
+          """
+    cursor.execute(sql)
+
+    doi_map = dict()
+    for doi, filename in cursor:
+        doi_map[doi.lower()] = filename
+
+    return doi_map
+
+
 def archive_summary():
     """Load archive information from database."""
     import MySQLdb

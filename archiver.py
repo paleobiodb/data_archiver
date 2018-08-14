@@ -31,28 +31,39 @@ def retrieve():
     from flask import send_from_directory
 
     # Retrieve DOI from the parameter list
-    doi = request.args.get('doi', default='None', type=str)
+    doi = request.args.get('doi', default='None', type=str).lower()
     
     if doi:
         # Match the DOI to the archive filename on disk
-        archives = db_read()
-        for archive in archives:
-            try:
-                if doi.lower() == archive.get('doi').lower():
-                    filename = archive.get('filename')
-            except AttributeError:
-                continue
+        doi_map = aux.archive_names()
+
+        if doi in doi_map.keys():
+            return doi_map[doi]
+        else:
+            return aux.responder('Invalid or unspecified doi', 400)
+
+    else:
+        return aux.responder('Invalid or unspecified doi', 400)
+
+
+        
+        #  for archive in archives:
+        #      try:
+        #          if doi.lower() == archive.get('doi').lower():
+        #              filename = archive.get('filename')
+        #      except AttributeError:
+        #          continue
 
 
 
 
-        return send_from_directory(datapath,
-                                   filename,
-                                   as_attachment=True,
-                                   attachment_filename=filename,
-                                   mimetype='application/x-compressed')
+    #      return send_from_directory(datapath,
+    #                                 filename,
+    #                                 as_attachment=True,
+    #                                 attachment_filename=filename,
+    #                                 mimetype='application/x-compressed')
 
-    return aux.responder('Invalid or unspecified DOI', 400)
+    #  return aux.responder('Invalid or unspecified doi', 400)
 
 
 @app.route('/create', methods=['PUT'])
