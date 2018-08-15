@@ -53,9 +53,6 @@ def retrieve():
         return aux.responder('Unspecified DOI', 400)
 
 
-    #  return aux.responder('Invalid or unspecified doi', 400)
-
-
 @app.route('/create', methods=['PUT'])
 def create():
     """Create an archive file on disk."""

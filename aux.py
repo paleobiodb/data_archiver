@@ -13,7 +13,7 @@ def archive_location():
     config = configparser.ConfigParser()
     config.read('settings.cnf')
 
-    return config['environment']['storage']
+    return str(config['environment']['storage'])
 
 
 def archive_names():
