@@ -54,3 +54,17 @@ def archive_summary():
                          'doi': doi})
 
     return jsonify(archives)
+
+
+def create_record(timestamp, filename, uri):
+    """Create new record in database."""
+    import MySQLdb
+
+    db_handle = MySQLdb.connect(read_default_file='./settings.cnf')
+
+    cursor = db_handle.cursor()
+    sql = """INSERT INTO data_archives (timestamp, filename, uri)
+             VALUES ({0:s}, {1:s}, {2:s})
+          """.format(timestamp, filename, uri)
+             
+    cursor.execute(sql)

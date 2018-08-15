@@ -106,6 +106,9 @@ def create():
         if syscall.returncode != 0:
             return aux.responder('Server error', 500)
 
+        # Initiate new record in database
+        aux.create_record()
+
         # Archive was successfully created on disk
         return aux.responder('Success', 200)
 
