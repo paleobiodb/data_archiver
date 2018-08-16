@@ -5,9 +5,6 @@ def responder(msg, status):
     return make_response(jsonify({'message': msg,
                                   'status': status}), status)
 
-#  def logger(msg, error=False):
-#      """Append log file."""
-
 
 def archive_location():
     """Retrive archive storage path from settings file."""

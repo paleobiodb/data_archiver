@@ -1,11 +1,21 @@
 from flask import Flask, request
 import aux
+import logging
 
 # WSGI application name
 app = Flask(__name__)
 
 # Data archive storage location
 datapath = aux.archive_location()
+
+# Configure the log file
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+log_handle = logging.FileHandler('archiver.log')
+log_handle.setLevel(logging.INFO)
+log_format = logging.Formatter('%(asctime)s - %(message)s')
+log_handle.setFormatter(log_format)
+logger.addHandler(log_handle)
 
 @app.errorhandler(404)
 def not_found(error):
@@ -16,12 +26,14 @@ def not_found(error):
 @app.route('/')
 def index():
     """Base path, server listening check."""
+    logger.info('Base path access')
     return aux.responder('PBDB data archive system operational', 200)
 
 
 @app.route('/list')
 def info():
     """Return information about existing data archives."""
+    logger.info('List path access')
     return aux.archive_summary()
 
 
@@ -47,10 +59,12 @@ def retrieve():
                                        mimetype='application/x-compressed')
 
         else:
-            return aux.responder('Invalid DOI', 400)
+            logger.info('ERROR: Invalid DOI specified')
+            return aux.responder('Client error', 400)
 
     else:
-        return aux.responder('Unspecified DOI', 400)
+        logger.info('ERROR: Unspecified DOI')
+        return aux.responder('Client error', 400)
 
 
 @app.route('/update/<int:ident>', methods=['PUT'])
