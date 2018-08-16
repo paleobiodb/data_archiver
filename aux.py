@@ -5,6 +5,9 @@ def responder(msg, status):
     return make_response(jsonify({'message': msg,
                                   'status': status}), status)
 
+#  def logger(msg, error=False):
+#      """Append log file."""
+
 
 def archive_location():
     """Retrive archive storage path from settings file."""
@@ -20,9 +23,9 @@ def archive_names():
     """Return a hash of DOIs and actual filenames."""
     import MySQLdb
 
-    db_handle = MySQLdb.connect(read_default_file='./settings.cnf')
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
 
-    cursor = db_handle.cursor()
+    cursor = db.cursor()
     sql = """SELECT doi, filename
              FROM data_archives;
           """
@@ -39,9 +42,9 @@ def archive_summary():
     """Load archive information from database."""
     import MySQLdb
 
-    db_handle = MySQLdb.connect(read_default_file='./settings.cnf')
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
 
-    cursor = db_handle.cursor()
+    cursor = db.cursor()
     sql = """SELECT username, filename, doi
              FROM data_archives;
           """
@@ -53,18 +56,51 @@ def archive_summary():
                          'filename': filename,
                          'doi': doi})
 
+    db.close()
+
     return jsonify(archives)
 
 
-def create_record(timestamp, filename, uri):
+def create_record(timestamp, uri, filename):
     """Create new record in database."""
     import MySQLdb
 
-    db_handle = MySQLdb.connect(read_default_file='./settings.cnf')
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
 
-    cursor = db_handle.cursor()
-    sql = """INSERT INTO data_archives (timestamp, filename, uri)
-             VALUES ({0:s}, {1:s}, {2:s})
-          """.format(timestamp, filename, uri)
+    cursor = db.cursor()
+    sql = """INSERT INTO data_archives (creation_date, uri, filename)
+             VALUES ('{0:s}', '{1:s}', '{2:s}');
+          """.format(timestamp, uri, filename)
              
-    cursor.execute(sql)
+    try:
+        cursor.execute(sql)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+
+    db.close()
+
+
+def update_record(archive_no, title, desc):
+    """Add metadata to the archive table in database."""
+    import MySQLdb
+
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
+    cursor = db.cursor()
+
+    if title:
+        sql = """UPDATE data_archives
+                 SET title = '{0:s}'
+                 WHERE archive_no = {1:d};
+              """.format(title, archive_no)
+        cursor.execute(sql)
+
+    if desc:
+        sql = """UPDATE data_archives
+                 SET description = '{0:s}'
+                 WHERE archive_no = {1:d};
+              """.format(desc, archive_no)
+        cursor.execute(sql)
+
+    db.commit()
+    db.close()

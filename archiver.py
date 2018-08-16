@@ -53,6 +53,25 @@ def retrieve():
         return aux.responder('Unspecified DOI', 400)
 
 
+@app.route('/update/<int:ident>', methods=['PUT'])
+def update(ident):
+    """Update the archive metadata."""
+    title = request.json.get('title')
+    desc = request.json.get('desc')
+
+    if title or desc:
+        try:
+            aux.update_record(ident, title, desc)
+        except Exception as e:
+            print(e)
+            return aux.responder('Server error - record update', 500)
+
+        return aux.responder('Success', 200)
+
+    else:
+        return aux.responder('Parameter error', 400)
+
+
 @app.route('/create', methods=['PUT'])
 def create():
     """Create an archive file on disk."""
@@ -67,7 +86,7 @@ def create():
                   'single.json': 'json'}
 
     # Retrieve the URI from the submitted payload
-    uri = request.json.get('uri')
+    uri = request.json.get('uri').replace(' ', '%20')
 
     if uri:
         # Check the validity of the passed API call
@@ -95,19 +114,26 @@ def create():
         # together with the appended file extention
         filename = '.'.join([md5(uri.encode()).hexdigest()[:8], file_ext])
 
-        # Use cURL to retrive the dataset
+        # Append the data path and remove extra "/" if one was added in config
         realpath = '/'.join([datapath, filename])
-        syscall = subprocess.run(['curl', '-s', uri, '-o', filename])
+        realpath = realpath.replace('//', '/')
+
+        # Use cURL to retrive the dataset
+        syscall = subprocess.run(['curl', '-s', uri, '-o', realpath])
         if syscall.returncode != 0:
-            return aux.responder('Server error', 500)
+            return aux.responder('Server error - file retrieval', 500)
 
         # Compress and replace the retrieved dataset on disk
-        syscall = subprocess.run(['bzip2', '-f', filename])
+        syscall = subprocess.run(['bzip2', '-f', realpath])
         if syscall.returncode != 0:
-            return aux.responder('Server error', 500)
+            return aux.responder('Server error - file compression', 500)
 
         # Initiate new record in database
-        aux.create_record()
+        try:
+            aux.create_record(timestamp, uri, filename)
+        except Exception as e:
+            print(e)
+            return aux.responder('Server error - record creation', 500)
 
         # Archive was successfully created on disk
         return aux.responder('Success', 200)
