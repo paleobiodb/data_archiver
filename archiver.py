@@ -1,9 +1,12 @@
 from flask import Flask, request
 import aux
 import logging
+from flask_cors import CORS, cross_origin
 
 # WSGI application name
 app = Flask(__name__)
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
 
 # Data archive storage location
 datapath = aux.archive_location()
@@ -18,12 +21,14 @@ log_handle.setFormatter(log_format)
 logger.addHandler(log_handle)
 
 @app.errorhandler(404)
+@cross_origin()
 def not_found(error):
     """Return an error if route does not exist."""
     return aux.responder('Not found', 404)
 
 
 @app.route('/')
+@cross_origin()
 def index():
     """Base path, server listening check."""
     logger.info('Base path access')
@@ -31,6 +36,7 @@ def index():
 
 
 @app.route('/list')
+@cross_origin()
 def info():
     """Return information about existing data archives."""
     logger.info('List path access')
@@ -38,6 +44,7 @@ def info():
 
 
 @app.route('/retrieve', methods=['GET'])
+@cross_origin()
 def retrieve():
     """Retrieve an existing archive given a DOI."""
     from flask import send_from_directory
@@ -68,6 +75,7 @@ def retrieve():
 
 
 @app.route('/update/<int:ident>', methods=['PUT'])
+@cross_origin()
 def update(ident):
     """Update the archive metadata."""
     title = request.json.get('title')
@@ -87,6 +95,7 @@ def update(ident):
 
 
 @app.route('/create', methods=['PUT'])
+@cross_origin()
 def create():
     """Create an archive file on disk."""
     from datetime import datetime as dt
