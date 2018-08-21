@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PBDB Data Archive</title>
+  <!-- UIkit CSS -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.0-beta.35/css/uikit.min.css" />
+	<!-- UIkit JS -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.0-beta.35/js/uikit.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/uikit/3.0.0-beta.35/js/uikit-icons.min.js"></script>
+  <!-- JQuery -->
+  <script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.3.1.min.js"></script>
+</head>
+
+<body>
+  <h1 class="uk-heading-line uk-text-center"><span>PBDB Data Archives</span></h1>
+
+  <div class="uk-section uk-section-muted">
+    <div class="uk-container">
+      <ul uk-accordion id="archiveList"</ul>
+	  </div>
+  </div>
+ </body>
+
+<script type="text/javascript">
+  $(document).ready(function(){
+    $.ajax( {
+      url: "http://localhost:5000/list",
+      dataType: "json"
+    })
+    .done (function (data) {
+      for (var rec in data) {
+        var item;
+        item = '<li><h3 class="uk-accordion-title">';
+        item += data[rec]['title'];
+        item += '  (DOI: ' + data[rec]['doi'] + ')</h3>';
+        item += '<div class="uk-accordion-content">';
+        item += 'Date: ' + data[rec]['creation_date'] + '<br>';
+        item += 'Creator: ' + data[rec]['username'] + '<br>';
+        item += '<a href="' + data[rec]['uri'] + '">Original Data Service Request</a>' + '<br>';
+        item += 'Description : ' + data[rec]['description'] + '<br>';
+        item += '</div></li>';
+        
+        $('#archiveList').append(item);
+        console.log(rec)
+      }
+    });
+  })
+</script>
+   
+</html>

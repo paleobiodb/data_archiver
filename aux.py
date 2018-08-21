@@ -42,16 +42,19 @@ def archive_summary():
     db = MySQLdb.connect(read_default_file='./settings.cnf')
 
     cursor = db.cursor()
-    sql = """SELECT username, filename, doi
+    sql = """SELECT title, doi, username, creation_date, description, uri
              FROM data_archives;
           """
     cursor.execute(sql)
 
     archives = list()
-    for username, filename, doi in cursor:
-        archives.append({'username': username,
-                         'filename': filename,
-                         'doi': doi})
+    for title, doi, username, creation_date, description, uri in cursor:
+        archives.append({'title': title,
+                         'doi': doi,
+                         'username': username,
+                         'creation_date': creation_date,
+                         'description': description,
+                         'uri': uri})
 
     db.close()
 
