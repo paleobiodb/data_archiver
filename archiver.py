@@ -103,10 +103,7 @@ def create():
     import subprocess
 
     # Dictionary of available file name extentions
-    extentions = {'list.csv': 'csv',
-                  'list.json': 'json',
-                  'single.csv': 'csv',
-                  'single.json': 'json'}
+    extentions = ['.csv', '.json', '.tsv', '.ris']
 
     # Retrieve the URI from the submitted payload
     uri = request.json.get('uri').replace(' ', '%20')
@@ -127,15 +124,16 @@ def create():
                                                  timespec='minutes'))
 
         # Determine the correct file name extention for the dataset
-        for extention in extentions.keys():
+        file_ext = None
+        for extention in extentions:
             if extention in uri:
-                file_ext = extentions[extention]
+                file_ext = extention
         if not file_ext:
             return aux.responder('Invalid URI', 400)
 
         # Create a filename from the first 8 characters of a hash of the URI
         # together with the appended file extention
-        filename = '.'.join([md5(uri.encode()).hexdigest()[:8], file_ext])
+        filename = ''.join([md5(uri.encode()).hexdigest()[:8], file_ext])
 
         # Append the data path and remove extra "/" if one was added in config
         realpath = '/'.join([datapath, filename])
