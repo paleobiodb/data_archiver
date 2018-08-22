@@ -34,13 +34,14 @@
       for (var rec in data) {
         var item;
         item = '<li><h3 class="uk-accordion-title">';
-        item += data[rec]['title'];
-        item += '  (DOI: ' + data[rec]['doi'] + ')</h3>';
+        item += data[rec]['title'] + '</h3>';
         item += '<div class="uk-accordion-content">';
+        item += 'DOI: ' + data[rec]['doi'] + '<br>';
         item += 'Date: ' + data[rec]['creation_date'] + '<br>';
         item += 'Creator: ' + data[rec]['username'] + '<br>';
         item += '<a href="' + data[rec]['uri'] + '">Original Data Service Request</a>' + '<br>';
-        item += 'Description : ' + data[rec]['description'] + '<br>';
+        item += 'Description : ' + data[rec]['description'] + '<br><br>';
+        item += '<button class="uk-button uk-button-default">Download</button>';
         item += '</div></li>';
         
         $('#archiveList').append(item);

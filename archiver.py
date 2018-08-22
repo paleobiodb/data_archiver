@@ -74,16 +74,17 @@ def retrieve():
         return aux.responder('Client error', 400)
 
 
-@app.route('/update/<int:ident>', methods=['PUT'])
+@app.route('/update/<int:archive_no>', methods=['PUT'])
 @cross_origin()
-def update(ident):
+def update(archive_no):
     """Update the archive metadata."""
     title = request.json.get('title')
     desc = request.json.get('desc')
+    doi = request.json.get('doi')
 
-    if title or desc:
+    if title or desc or doi:
         try:
-            aux.update_record(ident, title, desc)
+            aux.update_record(archive_no, title, desc, doi)
         except Exception as e:
             print(e)
             return aux.responder('Server error - record update', 500)

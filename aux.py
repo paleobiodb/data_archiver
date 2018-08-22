@@ -81,7 +81,7 @@ def create_record(timestamp, uri, filename):
     db.close()
 
 
-def update_record(archive_no, title, desc):
+def update_record(archive_no, title, desc, doi):
     """Add metadata to the archive table in database."""
     import MySQLdb
 
@@ -89,6 +89,7 @@ def update_record(archive_no, title, desc):
     cursor = db.cursor()
 
     if title:
+        title = title[:100]
         sql = """UPDATE data_archives
                  SET title = '{0:s}'
                  WHERE archive_no = {1:d};
@@ -96,10 +97,19 @@ def update_record(archive_no, title, desc):
         cursor.execute(sql)
 
     if desc:
+        desc = desc[:5000]
         sql = """UPDATE data_archives
                  SET description = '{0:s}'
                  WHERE archive_no = {1:d};
               """.format(desc, archive_no)
+        cursor.execute(sql)
+
+    if doi:
+        doi = doi[:100]
+        sql = """UPDATE data_archives
+                 SET doi = '{0:s}'
+                 WHERE archive_no = {1:d};
+              """.format(doi, archive_no)
         cursor.execute(sql)
 
     db.commit()
