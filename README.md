@@ -1,2 +1,6 @@
 # data_archiver
-Stand alone dataset archiving module for PBDB
+Dataset archive creation and retrieval module for PBDB
+
+Usage:
+
+    uwsgi archiver-wsgi.ini

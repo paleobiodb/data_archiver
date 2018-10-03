@@ -6,14 +6,31 @@ def responder(msg, status):
                                   'status': status}), status)
 
 
-def archive_location():
+def get_config(setting):
     """Retrive archive storage path from settings file."""
     import configparser
 
     config = configparser.ConfigParser()
     config.read('settings.cnf')
 
-    return str(config['environment']['storage'])
+    return str(config['environment'][setting])
+
+
+def user_info(session_id):
+    """Retrieve authorizer and enterer numbers based on browser cookie."""
+    import MySQLdb
+
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
+
+    cursor = db.cursor()
+    sql = """SELECT authorizer_no, enterer_no
+             from session_data
+             where session_id = '{0:s}'
+          """.format(session_id)
+
+    cursor.execute(sql)
+
+    return doi_map
 
 
 def archive_names():

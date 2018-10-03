@@ -9,7 +9,7 @@ cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 # Data archive storage location
-datapath = aux.archive_location()
+datapath = aux.get_config('storage')
 
 # Configure the log file
 logger = logging.getLogger(__name__)
@@ -31,11 +31,13 @@ def not_found(error):
 @cross_origin()
 def index():
     """Base path, server listening check."""
-    logger.info('Base path access')
-    return aux.responder('PBDB data archive system operational', 200)
+    # logger.info('Base path access')
+    # return aux.responder('PBDB data archive system operational', 200)
+    auth, ent = aux.user_info('3A5C9572-C5DE-11E8-B95E-D06A7865171E')
+    return aux.responder(str(auth) + str(ent))
 
 
-@app.route('/list')
+@app.route('/archives/list')
 @cross_origin()
 def info():
     """Return information about existing data archives."""
@@ -43,7 +45,7 @@ def info():
     return aux.archive_summary()
 
 
-@app.route('/retrieve', methods=['GET'])
+@app.route('/archives/retrieve', methods=['GET'])
 @cross_origin()
 def retrieve():
     """Retrieve an existing archive given a DOI."""
@@ -74,7 +76,7 @@ def retrieve():
         return aux.responder('Client error', 400)
 
 
-@app.route('/update/<int:archive_no>', methods=['PUT'])
+@app.route('/archives/update/<int:archive_no>', methods=['PUT'])
 @cross_origin()
 def update(archive_no):
     """Update the archive metadata."""
@@ -95,70 +97,50 @@ def update(archive_no):
         return aux.responder('Parameter error', 400)
 
 
-@app.route('/create', methods=['PUT'])
+@app.route('/archives/create', methods=['PUT'])
 @cross_origin()
 def create():
     """Create an archive file on disk."""
-    from datetime import datetime as dt
-    from hashlib import md5
     import subprocess
+    from urllib.parse import quote
 
-    # Dictionary of available file name extentions
-    extentions = ['.csv', '.json', '.tsv', '.ris']
 
-    # Retrieve the URI from the submitted payload
-    uri = request.json.get('uri').replace(' ', '%20')
+    # Load browser cookie
+    try:
+        auth, ent = aux.user_info(request.cookie.get('session_id'))
+    except Exception as e:
+        print(e)
+        return aux.responder('Client error - Invalid session ID', 400)
 
-    if uri:
-        # Check the validity of the passed API call
-        if type(uri) != str:
-            return aux.responder('Invalid URI', 400)
-        elif uri[:22] != 'https://paleobiodb.org':
-            return aux.responder('Invalid URI', 400)
-        elif len(uri.split()) > 1:
-            return aux.responder('Invalid URI', 400)
-        elif '&&' in uri:
-            return aux.responder('Invalid URI', 400)
+    # Build data service URI
+    base = get_config('dataservice')
+    path = request.json.get('uri_path')
+    args = quote(request.json.get('uri_args'))
+    uri = ''.join([base, path, args])
 
-        # Create a ISO format UTC timestamp for the archive
-        timestamp = '{0:s}Z'.format(dt.isoformat(dt.utcnow(),
-                                                 timespec='minutes'))
+    # Append the data path and remove extra "/" if one was added in config
+    realpath = '/'.join([datapath, filename])
+    realpath = realpath.replace('//', '/')
 
-        # Determine the correct file name extention for the dataset
-        file_ext = None
-        for extention in extentions:
-            if extention in uri:
-                file_ext = extention
-        if not file_ext:
-            return aux.responder('Invalid URI', 400)
+    # Use cURL to retrive the dataset
+    syscall = subprocess.run(['curl', '-s', uri, '-o', realpath])
+    if syscall.returncode != 0:
+        return aux.responder('Server error - File retrieval', 500)
 
-        # Create a filename from the first 8 characters of a hash of the URI
-        # together with the appended file extention
-        filename = ''.join([md5(uri.encode()).hexdigest()[:8], file_ext])
+    # Compress and replace the retrieved dataset on disk
+    syscall = subprocess.run(['bzip2', '-f', realpath])
+    if syscall.returncode != 0:
+        return aux.responder('Server error - File compression', 500)
 
-        # Append the data path and remove extra "/" if one was added in config
-        realpath = '/'.join([datapath, filename])
-        realpath = realpath.replace('//', '/')
+    # Initiate new record in database
+    try:
+        aux.create_record(timestamp, uri, filename)
+    except Exception as e:
+        print(e)
+        return aux.responder('Server error - Record creation', 500)
 
-        # Use cURL to retrive the dataset
-        syscall = subprocess.run(['curl', '-s', uri, '-o', realpath])
-        if syscall.returncode != 0:
-            return aux.responder('Server error - file retrieval', 500)
+    # Archive was successfully created on disk
+    return aux.responder('Success', 200)
 
-        # Compress and replace the retrieved dataset on disk
-        syscall = subprocess.run(['bzip2', '-f', realpath])
-        if syscall.returncode != 0:
-            return aux.responder('Server error - file compression', 500)
-
-        # Initiate new record in database
-        try:
-            aux.create_record(timestamp, uri, filename)
-        except Exception as e:
-            print(e)
-            return aux.responder('Server error - record creation', 500)
-
-        # Archive was successfully created on disk
-        return aux.responder('Success', 200)
-
-    else:
-        return aux.responder('No URI specified', 400)
+else:
+    return aux.responder('No URI specified', 400)
