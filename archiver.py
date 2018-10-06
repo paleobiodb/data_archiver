@@ -35,7 +35,7 @@ def not_found(error):
 def index():
     """Base path, server listening check."""
     logger.info('Base path access')
-    return aux.responder('PBDB data archive system operational', 200)
+    return aux.responder('PBDB data archive API running', 200)
 
 
 @app.route('/schema')
