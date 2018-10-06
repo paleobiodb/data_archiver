@@ -31,10 +31,8 @@ def not_found(error):
 @cross_origin()
 def index():
     """Base path, server listening check."""
-    # logger.info('Base path access')
-    # return aux.responder('PBDB data archive system operational', 200)
-    auth, ent = aux.user_info('3A5C9572-C5DE-11E8-B95E-D06A7865171E')
-    return aux.responder(str(auth) + str(ent))
+    logger.info('Base path access')
+    return aux.responder('PBDB data archive system operational', 200)
 
 
 @app.route('/archives/list')
@@ -50,6 +48,7 @@ def info():
 def retrieve():
     """Retrieve an existing archive given a DOI."""
     from flask import send_from_directory
+# TODO make this route work again
 
     # Retrieve DOI from the parameter list
     doi = request.args.get('doi', default='None', type=str).lower()
@@ -61,6 +60,7 @@ def retrieve():
         # Match the DOI to the archive filename on disk
         if doi in doi_map.keys():
             filename = doi_map[doi]
+            logger.info('Retrieve {0:s} - {1:s}'.format(doi, fileneme)
             return send_from_directory(datapath,
                                        filename,
                                        as_attachment=True,
@@ -88,12 +88,13 @@ def update(archive_no):
         try:
             aux.update_record(archive_no, title, desc, doi)
         except Exception as e:
-            print(e)
+            logger.info(e)
             return aux.responder('Server error - record update', 500)
 
         return aux.responder('Success', 200)
 
     else:
+        logger.info(e)
         return aux.responder('Parameter error', 400)
 
 
@@ -109,7 +110,7 @@ def create():
     try:
         auth, ent = aux.user_info(request.cookie.get('session_id'))
     except Exception as e:
-        print(e)
+        logger.info(e)
         return aux.responder('Client error - Invalid session ID', 400)
 
     # Build data service URI
@@ -118,6 +119,25 @@ def create():
     args = quote(request.json.get('uri_args'))
     uri = ''.join([base, path, args])
 
+    # Extract user entered metadata from payload
+    authors = request.json.get('authors')
+    title = request.json.get('title')
+    desc = request.json.get('description')
+
+    # Initiate new record in database
+    try:
+        aux.create_record(auth, ent, authors, title, desc, path, args)
+    except Exception as e:
+        logger.info(e)
+        return aux.responder('Server error - Record creation', 500)
+
+    # Read archive_no back from the table and create filename
+    try:
+        filename = aux.make_filename(ent)
+    except Exception as e:
+        logger.info(e)
+        return aux.responder('Server error - Filename creation', 500)
+
     # Append the data path and remove extra "/" if one was added in config
     realpath = '/'.join([datapath, filename])
     realpath = realpath.replace('//', '/')
@@ -125,22 +145,14 @@ def create():
     # Use cURL to retrive the dataset
     syscall = subprocess.run(['curl', '-s', uri, '-o', realpath])
     if syscall.returncode != 0:
+        logger.info('Archive download error')
         return aux.responder('Server error - File retrieval', 500)
 
     # Compress and replace the retrieved dataset on disk
     syscall = subprocess.run(['bzip2', '-f', realpath])
     if syscall.returncode != 0:
+        logger.info('Archive compression error')
         return aux.responder('Server error - File compression', 500)
-
-    # Initiate new record in database
-    try:
-        aux.create_record(timestamp, uri, filename)
-    except Exception as e:
-        print(e)
-        return aux.responder('Server error - Record creation', 500)
 
     # Archive was successfully created on disk
     return aux.responder('Success', 200)
-
-else:
-    return aux.responder('No URI specified', 400)
