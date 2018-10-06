@@ -1,5 +1,6 @@
 from flask import make_response, jsonify
 
+
 def responder(msg, status):
     """Format a JSON response."""
     return make_response(jsonify({'message': msg,
@@ -37,12 +38,25 @@ def user_info(session_id):
     return auth, ent
 
 
-def delete_archive():
+def delete_archive(archive_no):
     """Permanently remove a dataset from the system."""
-    # delte from table
-    # delete from file system
-    
-    pass
+    import MySQLdb
+
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
+
+    cursor = db.cursor()
+
+    sql = """DELETE FROM data_archives
+             WHERE archive_no = {0:d}
+             LIMIT 1
+          """.format(archive_no)
+
+    cursor.execute(sql)
+
+    db.close()
+
+    # TODO: delete from file system?
+
 
 def archive_names():
     """Return a hash of DOIs and actual filenames."""
@@ -51,9 +65,11 @@ def archive_names():
     db = MySQLdb.connect(read_default_file='./settings.cnf')
 
     cursor = db.cursor()
+
     sql = """SELECT doi, filename
-             FROM data_archives;
+             FROM data_archives
           """
+
     cursor.execute(sql)
 
     doi_map = dict()
@@ -61,6 +77,26 @@ def archive_names():
         doi_map[doi.lower()] = filename
 
     return doi_map
+
+def schema_read():
+    """Dump the header info to check db connector."""
+    import MySQLdb
+
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
+
+    cursor = db.cursor()
+
+    sql = """SHOW COLUMNS
+             FROM data_archives
+          """
+
+    cursor.execute(sql)
+
+    schema = list()
+    for row in cursor:
+        schema.append(row)
+
+    return make_response(jsonify(schema))
 
 
 def archive_summary():
@@ -70,23 +106,55 @@ def archive_summary():
     db = MySQLdb.connect(read_default_file='./settings.cnf')
 
     cursor = db.cursor()
-    sql = """SELECT title, doi, username, creation_date, description, uri
-             FROM data_archives;
+
+    sql = """SELECT title, doi, authors, created,
+                    description, uri_path, uri_args
+             FROM data_archives
           """
+
     cursor.execute(sql)
 
     archives = list()
-    for title, doi, username, creation_date, description, uri in cursor:
+    for title, doi, authors, created, \
+            description, uri_path, uri_base in cursor:
+
         archives.append({'title': title,
                          'doi': doi,
-                         'username': username,
-                         'creation_date': creation_date,
+                         'authors': authors,
+                         'created': created,
                          'description': description,
-                         'uri': uri})
+                         'uri_path': uri_path,
+                         'uri_base': uri_base})
 
     db.close()
 
     return jsonify(archives)
+
+
+def archive_status(archive_no, success):
+    """Set the archive creation status in the table."""
+    import MySQLdb
+
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
+
+    cursor = db.cursor()
+
+    if success:
+        sql = """UPDATE data_archives
+                 SET status = '{0:s}'
+                 WHERE archive_no = {1:d}
+              """.format('comlpete', archive_no)
+    else:
+        sql = """UPDATE data_archives
+                 SET status = '{0:s}'
+                 WHERE archive_no = {1:d}
+              """.format('fail', archive_no)
+
+    cursor.execute(sql)
+
+    db.close()
+
+    return archive_no
 
 
 def get_archive_no(ent):
@@ -96,24 +164,22 @@ def get_archive_no(ent):
     db = MySQLdb.connect(read_default_file='./settings.cnf')
 
     cursor = db.cursor()
-    sql = """SELECT title, doi, username, creation_date, description, uri
-             FROM data_archives;
-          """
+
     sql = """SELECT archive_no
              FROM data_archives
-             WHERE enterer_no = '{0:d}'
+             WHERE enterer_no = {0:d}
              ORDER BY created DESC
-             LIMIT 1;
+             LIMIT 1
           """.format(ent)
 
     cursor.execute(sql)
 
     for archive_no in cursor:
-        filename = archive_no
+        archive_no = archive_no
 
     db.close()
 
-    return filename
+    return archive_no
 
 
 def create_record(auth, ent, authors, title, desc, path, args):
@@ -126,9 +192,9 @@ def create_record(auth, ent, authors, title, desc, path, args):
     sql = """INSERT INTO data_archives
              (authorizer_no, enterer_no, authors, title, description,
               uri_path, uri_args)
-             VALUES ('{0:d}', '{1:d}', '{2:s}, {3:s}, {4:s}, {5:s}, {6:s}');
+             VALUES ({0:d}, {1:d}, '{2:s}', '{3:s}', '{4:s}', '{5:s}', '{6:s}')
           """.format(auth, ent, authors, title, desc, path, args)
-             
+
     try:
         cursor.execute(sql)
         db.commit()
@@ -138,7 +204,7 @@ def create_record(auth, ent, authors, title, desc, path, args):
     db.close()
 
 
-def update_record(archive_no, title, desc, doi):
+def update_record(archive_no, title, desc, authors, doi):
     """Add metadata to the archive table in database."""
     import MySQLdb
 
@@ -146,26 +212,34 @@ def update_record(archive_no, title, desc, doi):
     cursor = db.cursor()
 
     if title:
-        title = title[:100]
+        title = title[:255]
         sql = """UPDATE data_archives
-                 SET title = '{0:s}'
-                 WHERE archive_no = {1:d};
+                 SET title = '{0:s}', modified = now()
+                 WHERE archive_no = {1:d}
               """.format(title, archive_no)
         cursor.execute(sql)
 
     if desc:
         desc = desc[:5000]
         sql = """UPDATE data_archives
-                 SET description = '{0:s}'
-                 WHERE archive_no = {1:d};
+                 SET description = '{0:s}', modified = now()
+                 WHERE archive_no = {1:d}
+              """.format(desc, archive_no)
+        cursor.execute(sql)
+
+    if authors:
+        desc = desc[:255]
+        sql = """UPDATE data_archives
+                 SET authors = '{0:s}', modified = now()
+                 WHERE archive_no = {1:d}
               """.format(desc, archive_no)
         cursor.execute(sql)
 
     if doi:
         doi = doi[:100]
         sql = """UPDATE data_archives
-                 SET doi = '{0:s}'
-                 WHERE archive_no = {1:d};
+                 SET doi = '{0:s}', modified = now()
+                 WHERE archive_no = {1:d}
               """.format(doi, archive_no)
         cursor.execute(sql)
 

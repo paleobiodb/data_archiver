@@ -1,7 +1,9 @@
 from flask import Flask, request
-import aux
-import logging
 from flask_cors import CORS, cross_origin
+import logging
+
+import aux
+
 
 # WSGI application name
 app = Flask(__name__)
@@ -20,6 +22,7 @@ log_format = logging.Formatter('%(asctime)s - %(message)s')
 log_handle.setFormatter(log_format)
 logger.addHandler(log_handle)
 
+
 @app.errorhandler(404)
 @cross_origin()
 def not_found(error):
@@ -35,6 +38,14 @@ def index():
     return aux.responder('PBDB data archive system operational', 200)
 
 
+@app.route('/schema')
+@cross_origin()
+def schema():
+    """Base path, server listening check."""
+    logger.info('Database schema access')
+    return aux.schema_read()
+
+
 @app.route('/archives/list')
 @cross_origin()
 def info():
@@ -43,16 +54,37 @@ def info():
     return aux.archive_summary()
 
 
-@app.route('/archives/retrieve', methods=['GET'])
+@app.route('/archives/retrieve/<int:archive_no>', methods=['PUT'])
 @cross_origin()
-def retrieve():
-    """Retrieve an existing archive given a DOI."""
+def retrieve(archive_no):
+    """Retrieve an existing archive given an archive number."""
     from flask import send_from_directory
-# TODO make this route work again
+
+    filename = ''.join([str(archive_no), '.bz2'])
+
+    if archive_no:
+        try:
+            return send_from_directory(datapath,
+                                       filename,
+                                       as_attachment=True,
+                                       attachment_filename=filename,
+                                       mimetype='application/x-compressed')
+
+            logger.info('Retrieved archive {0:d}'.format(archive_no))
+
+        except Exception as e:
+            logger.info('Retrieval error archive {0:d}'.format(archive_no))
+            logger.info(e)
+            return aux.responder('Retrieval error', 500)
+
+    else:
+        logger.info('Unspecified archive number', 400)
+
+    '''Retrieve give a DOI - Currently disabled
 
     # Retrieve DOI from the parameter list
     doi = request.args.get('doi', default='None', type=str).lower()
-    
+
     if doi:
         # Load DOI:filename map from database
         doi_map = aux.archive_names()
@@ -60,7 +92,7 @@ def retrieve():
         # Match the DOI to the archive filename on disk
         if doi in doi_map.keys():
             filename = doi_map[doi]
-            logger.info('Retrieve {0:s} - {1:s}'.format(doi, fileneme)
+            logger.info('Retrieve {0:s} - {1:s}'.format(doi, fileneme))
             return send_from_directory(datapath,
                                        filename,
                                        as_attachment=True,
@@ -74,6 +106,17 @@ def retrieve():
     else:
         logger.info('ERROR: Unspecified DOI')
         return aux.responder('Client error', 400)
+    '''
+
+
+@app.route('/archives/delete/<int:archive_no>', methods=['PUT'])
+@cross_origin()
+def delete(archive_no):
+
+    try:
+        aux.delete_archive(archive_no)
+    except Exception as e:
+        logger.info('Deletion error archive number: {0:d}'.format(archive_no))
 
 
 @app.route('/archives/update/<int:archive_no>', methods=['PUT'])
@@ -81,10 +124,11 @@ def retrieve():
 def update(archive_no):
     """Update the archive metadata."""
     title = request.json.get('title')
-    desc = request.json.get('desc')
+    desc = request.json.get('description')
+    authors = request.json.get('authors')
     doi = request.json.get('doi')
 
-    if title or desc or doi:
+    if title or desc or authors or doi:
         try:
             aux.update_record(archive_no, title, desc, doi)
         except Exception as e:
@@ -94,7 +138,7 @@ def update(archive_no):
         return aux.responder('Success', 200)
 
     else:
-        logger.info(e)
+        logger.info('ERROR: Unsupported parameters for update')
         return aux.responder('Parameter error', 400)
 
 
@@ -105,7 +149,6 @@ def create():
     import subprocess
     from urllib.parse import quote
 
-
     # Load browser cookie
     try:
         auth, ent = aux.user_info(request.cookie.get('session_id'))
@@ -114,7 +157,7 @@ def create():
         return aux.responder('Client error - Invalid session ID', 400)
 
     # Build data service URI
-    base = get_config('dataservice')
+    base = aux.get_config('dataservice')
     path = request.json.get('uri_path')
     args = quote(request.json.get('uri_args'))
     uri = ''.join([base, path, args])
@@ -133,26 +176,31 @@ def create():
 
     # Read archive_no back from the table and create filename
     try:
-        filename = aux.make_filename(ent)
+        archive_no = aux.get_archive_no(ent)
     except Exception as e:
         logger.info(e)
-        return aux.responder('Server error - Filename creation', 500)
+        aux.archive_status(archive_no, success=False)
+        return aux.responder('Server error - Archive number not found', 500)
 
     # Append the data path and remove extra "/" if one was added in config
-    realpath = '/'.join([datapath, filename])
+    realpath = '/'.join([datapath, str(archive_no)])
     realpath = realpath.replace('//', '/')
 
     # Use cURL to retrive the dataset
     syscall = subprocess.run(['curl', '-s', uri, '-o', realpath])
     if syscall.returncode != 0:
         logger.info('Archive download error')
+        aux.archive_status(archive_no, success=False)
         return aux.responder('Server error - File retrieval', 500)
 
     # Compress and replace the retrieved dataset on disk
     syscall = subprocess.run(['bzip2', '-f', realpath])
     if syscall.returncode != 0:
         logger.info('Archive compression error')
+        aux.archive_status(archive_no, success=False)
         return aux.responder('Server error - File compression', 500)
 
     # Archive was successfully created on disk
+    logger.info('Created archive number: {0:d}'.format(archive_no))
+    aux.archive_status(success=True)
     return aux.responder('Success', 200)
