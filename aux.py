@@ -143,7 +143,7 @@ def archive_status(archive_no, success):
         sql = """UPDATE data_archives
                  SET status = '{0:s}'
                  WHERE archive_no = {1:d}
-              """.format('comlpete', archive_no)
+              """.format('complete', archive_no)
     else:
         sql = """UPDATE data_archives
                  SET status = '{0:s}'
@@ -175,11 +175,11 @@ def get_archive_no(ent):
     cursor.execute(sql)
 
     for archive_no in cursor:
-        archive_no = archive_no
+        current_archive = archive_no[0]
 
     db.close()
 
-    return archive_no
+    return current_archive
 
 
 def create_record(auth, ent, authors, title, desc, path, args):

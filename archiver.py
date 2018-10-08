@@ -61,13 +61,14 @@ def retrieve(archive_no):
     from flask import send_from_directory
 
     filename = ''.join([str(archive_no), '.bz2'])
+    attachment_filename = 'pbdb_archive_' + str(archive_no) + '.bz2'
 
     if archive_no:
         try:
             return send_from_directory(datapath,
                                        filename,
                                        as_attachment=True,
-                                       attachment_filename=filename,
+                                       attachment_filename=attachment_filename,
                                        mimetype='application/x-compressed')
 
             logger.info('Retrieved archive {0:d}'.format(archive_no))
@@ -148,24 +149,82 @@ def create():
     """Create an archive file on disk."""
     import subprocess
     from urllib.parse import quote
+    
+    #
+    # Sample JSON PUT format for payload for create path
+    #
+    # frontent to quote all urls
+    #
+    # {'title': '', 'authors': '', 'description': '', 'uri_path': '',
+    # 'uri_args': '', 'format': ''}
+    #
+    # uri_path eg. '/data1.2/occs/list.txt'
+    # uri_args eg. 'base_name=canis&interval=miocene'
+    #
+    # Notes:
+    #   1. Frontend to http encode (aka quote) the uri components
+    #   2. Frontend will lead path with a '/'
+    #   3. Backend to insert a "?" between path and args
+    #   4. For testing from the command line with curl, you can pass
+    #      a session_id key:val (grabbed from a current browser session)
+    #      in the payload.
+    #
 
-    # Load browser cookie
+    # Attempt to find session_id in the payload (testing only)
+    if request.json.get('session_id'):
+        session_id = request.json['session_id']
+    # Otherwise pull it out of the browser cookie (normal functionalty)
+    else:
+        session_id = request.cookie.get('session_id')
+    
+    # Determine authorizer and enter numbers from the session_id
     try:
-        auth, ent = aux.user_info(request.cookie.get('session_id'))
+        # auth, ent = aux.user_info(request.cookie.get('session_id'))
+        auth, ent = aux.user_info(session_id)
     except Exception as e:
         logger.info(e)
         return aux.responder('Client error - Invalid session ID', 400)
 
-    # Build data service URI
-    base = aux.get_config('dataservice')
+    # Extract user entered metadata from payload
+    # TODO: alternative to authors should resove to username from wing table
+    authors = request.json.get('authors', 'Enter No. ' + str(ent))
+    title = request.json.get('title')
+    desc = request.json.get('description', 'No description')
+
+    # Extract components of data service call from payload
     path = request.json.get('uri_path')
     args = quote(request.json.get('uri_args'))
-    uri = ''.join([base, path, args])
 
-    # Extract user entered metadata from payload
-    authors = request.json.get('authors')
-    title = request.json.get('title')
-    desc = request.json.get('description')
+    # Parameter checks
+    if not title:
+        return aux.responder('Missing title', 400)
+
+    if not args:
+        return aux.responder('Missing uri_args', 400)
+    
+    if path:
+        if path[0] != '/':
+            return aux.responder('uri_path not preceeded by "/"', 400)
+    else:
+        return aux.responder('Missing uri_path', 400)
+
+    # Build data service URI
+    base = aux.get_config('dataservice')
+    uri = ''.join([base, path, '?', args])
+
+    '''
+    # XXX debug
+    print(auth)
+    print(ent)
+    print(uri)
+    print(authors)
+    print(title)
+    print(desc)
+    realpath = '/'.join([datapath, 'testfile'])
+    realpath = realpath.replace('//', '/')
+    syscall = subprocess.run(['touch', realpath])
+    return aux.responder('pass', 200)
+    '''
 
     # Initiate new record in database
     try:
@@ -187,6 +246,7 @@ def create():
     realpath = realpath.replace('//', '/')
 
     # Use cURL to retrive the dataset
+    print(realpath)
     syscall = subprocess.run(['curl', '-s', uri, '-o', realpath])
     if syscall.returncode != 0:
         logger.info('Archive download error')
@@ -202,5 +262,5 @@ def create():
 
     # Archive was successfully created on disk
     logger.info('Created archive number: {0:d}'.format(archive_no))
-    aux.archive_status(success=True)
+    aux.archive_status(archive_no, success=True)
     return aux.responder('Success', 200)
