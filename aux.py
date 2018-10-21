@@ -191,6 +191,31 @@ def get_archive_no(ent):
     return current_archive
 
 
+def get_file_type(archive_no):
+    """Determine file type of the archive and return an extension."""
+    import MySQLdb
+
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
+
+    cursor = db.cursor()
+
+    sql = """SELECT uri_path
+             FROM data_archives
+             WHERE archive_no = {0:d}
+             LIMIT 1
+          """.format(archive_no)
+
+    cursor.execute(sql)
+
+    for uri_path in cursor:
+        uri_path = uri_path[0]
+
+    db.close()
+    print(uri_path)
+
+    return uri_path[uri_path.rfind('.'):]
+
+
 def create_record(auth, ent, authors, title, desc, path, args):
     """Create new record in database."""
     import MySQLdb

@@ -62,7 +62,13 @@ def retrieve(archive_no):
     from flask import send_from_directory
 
     filename = ''.join([str(archive_no), '.bz2'])
-    attachment_filename = 'pbdb_archive_' + str(archive_no) + '.bz2'
+
+    file_type = aux.get_file_type(archive_no)
+
+    attachment_filename = ''.join(['pbdb_archive_',
+                                   str(archive_no),
+                                   file_type,
+                                   '.bz2'])
 
     if archive_no:
         try:
