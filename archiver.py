@@ -27,6 +27,7 @@ logger.addHandler(log_handle)
 @cross_origin()
 def not_found(error):
     """Return an error if route does not exist."""
+    logger.info('404 Not found')
     return aux.responder('Not found', 404)
 
 
@@ -54,7 +55,7 @@ def info():
     return aux.archive_summary()
 
 
-@app.route('/archives/retrieve/<int:archive_no>', methods=['PUT'])
+@app.route('/archives/retrieve/<int:archive_no>', methods=['GET'])
 @cross_origin()
 def retrieve(archive_no):
     """Retrieve an existing archive given an archive number."""
@@ -79,7 +80,8 @@ def retrieve(archive_no):
             return aux.responder('Retrieval error', 500)
 
     else:
-        logger.info('Unspecified archive number', 400)
+        logger.info('Unspecified archive number')
+        return aux.responder('Unspecified archive number', 400)
 
     '''Retrieve give a DOI - Currently disabled
 
@@ -110,17 +112,19 @@ def retrieve(archive_no):
     '''
 
 
-@app.route('/archives/delete/<int:archive_no>', methods=['PUT'])
+@app.route('/archives/delete/<int:archive_no>', methods=['GET'])
 @cross_origin()
 def delete(archive_no):
-
+    """Delete a archive record from the system table."""
     try:
         aux.delete_archive(archive_no)
+        return aux.responder('Success', 200)
     except Exception as e:
-        logger.info('Deletion error archive number: {0:d}'.format(archive_no))
+        logger.info('Deletion error: {0:s}'.format(e))
+        return aux.responder('Deletion error', 500)
 
 
-@app.route('/archives/update/<int:archive_no>', methods=['PUT'])
+@app.route('/archives/update/<int:archive_no>', methods=['PUT', 'GET'])
 @cross_origin()
 def update(archive_no):
     """Update the archive metadata."""
@@ -131,11 +135,13 @@ def update(archive_no):
 
     if title or desc or authors or doi:
         try:
-            aux.update_record(archive_no, title, desc, doi)
+            aux.update_record(archive_no, title, desc, authors, doi)
+ 
         except Exception as e:
             logger.info(e)
             return aux.responder('Server error - record update', 500)
 
+        logger.info('Updated {0:d}'.format(archive_no))
         return aux.responder('Success', 200)
 
     else:
@@ -148,27 +154,7 @@ def update(archive_no):
 def create():
     """Create an archive file on disk."""
     import subprocess
-    from urllib.parse import quote
-    
-    #
-    # Sample JSON PUT format for payload for create path
-    #
-    # frontent to quote all urls
-    #
-    # {'title': '', 'authors': '', 'description': '', 'uri_path': '',
-    # 'uri_args': '', 'format': ''}
-    #
-    # uri_path eg. '/data1.2/occs/list.txt'
-    # uri_args eg. 'base_name=canis&interval=miocene'
-    #
-    # Notes:
-    #   1. Frontend to http encode (aka quote) the uri components
-    #   2. Frontend will lead path with a '/'
-    #   3. Backend to insert a "?" between path and args
-    #   4. For testing from the command line with curl, you can pass
-    #      a session_id key:val (grabbed from a current browser session)
-    #      in the payload.
-    #
+    # from urllib.parse import quote
 
     # Attempt to find session_id in the payload (testing only)
     if request.json.get('session_id'):
@@ -176,7 +162,7 @@ def create():
     # Otherwise pull it out of the browser cookie (normal functionalty)
     else:
         session_id = request.cookie.get('session_id')
-    
+
     # Determine authorizer and enter numbers from the session_id
     try:
         # auth, ent = aux.user_info(request.cookie.get('session_id'))
@@ -193,7 +179,7 @@ def create():
 
     # Extract components of data service call from payload
     path = request.json.get('uri_path')
-    args = quote(request.json.get('uri_args'))
+    args = request.json.get('uri_args')
 
     # Parameter checks
     if not title:
@@ -201,7 +187,7 @@ def create():
 
     if not args:
         return aux.responder('Missing uri_args', 400)
-    
+
     if path:
         if path[0] != '/':
             return aux.responder('uri_path not preceeded by "/"', 400)
@@ -211,24 +197,12 @@ def create():
     # Build data service URI
     base = aux.get_config('dataservice')
     uri = ''.join([base, path, '?', args])
-
-    '''
-    # XXX debug
-    print(auth)
-    print(ent)
-    print(uri)
-    print(authors)
-    print(title)
-    print(desc)
-    realpath = '/'.join([datapath, 'testfile'])
-    realpath = realpath.replace('//', '/')
-    syscall = subprocess.run(['touch', realpath])
-    return aux.responder('pass', 200)
-    '''
+    uri = uri.replace(' ', '%20')
 
     # Initiate new record in database
     try:
         aux.create_record(auth, ent, authors, title, desc, path, args)
+        logger.info('Record created. Enterer No: {0:d}'.format(ent))
     except Exception as e:
         logger.info(e)
         return aux.responder('Server error - Record creation', 500)
@@ -236,6 +210,7 @@ def create():
     # Read archive_no back from the table and create filename
     try:
         archive_no = aux.get_archive_no(ent)
+        logger.info('Record created. Archive No: {0:d}'.format(archive_no))
     except Exception as e:
         logger.info(e)
         aux.archive_status(archive_no, success=False)
@@ -246,7 +221,6 @@ def create():
     realpath = realpath.replace('//', '/')
 
     # Use cURL to retrive the dataset
-    print(realpath)
     syscall = subprocess.run(['curl', '-s', uri, '-o', realpath])
     if syscall.returncode != 0:
         logger.info('Archive download error')
@@ -257,10 +231,10 @@ def create():
     syscall = subprocess.run(['bzip2', '-f', realpath])
     if syscall.returncode != 0:
         logger.info('Archive compression error')
-        aux.archive_status(archive_no, success=False)
+        aux.archive_status(archive_no=archive_no, success=False)
         return aux.responder('Server error - File compression', 500)
 
     # Archive was successfully created on disk
     logger.info('Created archive number: {0:d}'.format(archive_no))
-    aux.archive_status(archive_no, success=True)
+    aux.archive_status(archive_no=archive_no, success=True)
     return aux.responder('Success', 200)

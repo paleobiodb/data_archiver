@@ -51,7 +51,11 @@ def delete_archive(archive_no):
              LIMIT 1
           """.format(archive_no)
 
-    cursor.execute(sql)
+    try:
+        cursor.execute(sql)
+        db.commit()
+    except Exception as e:
+        db.rollback()
 
     db.close()
 
@@ -77,6 +81,7 @@ def archive_names():
         doi_map[doi.lower()] = filename
 
     return doi_map
+
 
 def schema_read():
     """Dump the header info to check db connector."""
@@ -107,7 +112,7 @@ def archive_summary():
 
     cursor = db.cursor()
 
-    sql = """SELECT title, doi, authors, created,
+    sql = """SELECT archive_no, title, doi, authors, created,
                     description, uri_path, uri_args
              FROM data_archives
           """
@@ -115,16 +120,17 @@ def archive_summary():
     cursor.execute(sql)
 
     archives = list()
-    for title, doi, authors, created, \
-            description, uri_path, uri_base in cursor:
+    for archive_no, title, doi, authors, created, description, \
+            uri_path, uri_base in cursor:
 
-        archives.append({'title': title,
-                         'doi': doi,
-                         'authors': authors,
-                         'created': created,
-                         'description': description,
-                         'uri_path': uri_path,
-                         'uri_base': uri_base})
+            archives.append({'archive_no': archive_no,
+                             'title': title,
+                             'doi': doi,
+                             'authors': authors,
+                             'created': created,
+                             'description': description,
+                             'uri_path': uri_path,
+                             'uri_base': uri_base})
 
     db.close()
 
@@ -140,6 +146,7 @@ def archive_status(archive_no, success):
     cursor = db.cursor()
 
     if success:
+        print(archive_no)
         sql = """UPDATE data_archives
                  SET status = '{0:s}'
                  WHERE archive_no = {1:d}
@@ -150,11 +157,13 @@ def archive_status(archive_no, success):
                  WHERE archive_no = {1:d}
               """.format('fail', archive_no)
 
-    cursor.execute(sql)
+    try:
+        cursor.execute(sql)
+        db.commit()
+    except Exception as e:
+        db.rollback()
 
     db.close()
-
-    return archive_no
 
 
 def get_archive_no(ent):
@@ -243,5 +252,10 @@ def update_record(archive_no, title, desc, authors, doi):
               """.format(doi, archive_no)
         cursor.execute(sql)
 
-    db.commit()
+    try:
+        cursor.execute(sql)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+
     db.close()
