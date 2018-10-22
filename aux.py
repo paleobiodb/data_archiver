@@ -38,6 +38,41 @@ def user_info(session_id):
     return auth, ent
 
 
+def view_archive(archive_no):
+    """Retrieve metadata for a single record."""
+    import MySQLdb
+
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
+
+    cursor = db.cursor()
+
+    sql = """SELECT archive_no, title, doi, authors, created,
+                    description, uri_path, uri_args
+             FROM data_archives
+             WHERE archive_no = {0:d}
+             LIMIT 1
+          """.format(archive_no)
+
+    cursor.execute(sql)
+
+    archives = list()
+    for archive_no, title, doi, authors, created, description, \
+            uri_path, uri_base in cursor:
+
+            archives.append({'archive_no': archive_no,
+                             'title': title,
+                             'doi': doi,
+                             'authors': authors,
+                             'created': created,
+                             'description': description,
+                             'uri_path': uri_path,
+                             'uri_base': uri_base})
+
+    db.close()
+
+    return jsonify(archives)
+
+
 def delete_archive(archive_no):
     """Permanently remove a dataset from the system."""
     import MySQLdb

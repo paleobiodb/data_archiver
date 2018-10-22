@@ -117,6 +117,13 @@ def retrieve(archive_no):
         return aux.responder('Client error', 400)
     '''
 
+@app.route('/archives/view/<int:archive_no>', methods=['GET'])
+@cross_origin()
+def view(archive_no):
+    """Retrieve details on a single archive."""
+    logger.info('View path access')
+    return aux.view_archive(archive_no)
+
 
 @app.route('/archives/delete/<int:archive_no>', methods=['GET'])
 @cross_origin()
@@ -130,10 +137,11 @@ def delete(archive_no):
         return aux.responder('Deletion error', 500)
 
 
-@app.route('/archives/update/<int:archive_no>', methods=['PUT', 'GET'])
+@app.route('/archives/update/<int:archive_no>', methods=['POST', 'GET'])
 @cross_origin()
 def update(archive_no):
     """Update the archive metadata."""
+    print('Got HERE' + str(archive_no))
     title = request.json.get('title')
     desc = request.json.get('description')
     authors = request.json.get('authors')
@@ -155,7 +163,7 @@ def update(archive_no):
         return aux.responder('Parameter error', 400)
 
 
-@app.route('/archives/create', methods=['PUT'])
+@app.route('/archives/create', methods=['POST'])
 @cross_origin()
 def create():
     """Create an archive file on disk."""
