@@ -175,7 +175,7 @@ def create():
         session_id = request.json['session_id']
     # Otherwise pull it out of the browser cookie (normal functionalty)
     else:
-        session_id = request.cookie.get('session_id')
+        session_id = request.cookies.get('session_id')
 
     # Determine authorizer and enter numbers from the session_id
     try:
@@ -235,11 +235,22 @@ def create():
     realpath = realpath.replace('//', '/')
 
     # Use cURL to retrive the dataset
-    syscall = subprocess.run(['curl', '-s', uri, '-o', realpath])
-    if syscall.returncode != 0:
+    token = '='.join(['session_id', request.cookies.get('session_id')])
+    headerpath = realpath + '.header'
+    syscall = subprocess.run(['curl', '-s', '--cookie', token, '-o', realpath, '-D', headerpath, uri])
+    import os
+    if syscall.returncode != 0 or not os.path.exists(headerpath):
         logger.info('Archive download error')
         aux.archive_status(archive_no, success=False)
         return aux.responder('Server error - File retrieval', 500)
+    
+    with open(headerpath, 'r') as f:
+        content = f.readlines()
+        print(content[0])
+        if '200' not in content[0]:
+            logger.info('Data service error')
+            aux.archive_status(archive_no, success=False)
+            return aux.responder('Server Error - Data service', 500)
 
     # Compress and replace the retrieved dataset on disk
     syscall = subprocess.run(['bzip2', '-f', realpath])
