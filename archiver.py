@@ -117,6 +117,7 @@ def retrieve(archive_no):
         return aux.responder('Client error', 400)
     '''
 
+
 @app.route('/archives/view/<int:archive_no>', methods=['GET'])
 @cross_origin()
 def view(archive_no):
@@ -150,7 +151,7 @@ def update(archive_no):
     if title or desc or authors or doi:
         try:
             aux.update_record(archive_no, title, desc, authors, doi)
- 
+
         except Exception as e:
             logger.info(e)
             return aux.responder('Server error - record update', 500)
@@ -168,6 +169,7 @@ def update(archive_no):
 def create():
     """Create an archive file on disk."""
     import subprocess
+    import os
     # from urllib.parse import quote
 
     # Attempt to find session_id in the payload (testing only)
@@ -179,14 +181,17 @@ def create():
 
     # Determine authorizer and enter numbers from the session_id
     try:
-        # auth, ent = aux.user_info(request.cookie.get('session_id'))
         auth, ent = aux.user_info(session_id)
     except Exception as e:
         logger.info(e)
         return aux.responder('Client error - Invalid session ID', 400)
 
+    # Determine if the user has an ORCID
+    #has_orcid = check_for_orcid(ent)
+    #if not has_orcid:
+    #    return aux.responder('Client error - Missing ORCID', 400)
+
     # Extract user entered metadata from payload
-    # TODO: alternative to authors should resove to username from wing table
     authors = request.json.get('authors', 'Enter No. ' + str(ent))
     title = request.json.get('title')
     desc = request.json.get('description', 'No description')
@@ -237,20 +242,21 @@ def create():
     # Use cURL to retrive the dataset
     token = '='.join(['session_id', request.cookies.get('session_id')])
     headerpath = realpath + '.header'
-    syscall = subprocess.run(['curl', '-s', '--cookie', token, '-o', realpath, '-D', headerpath, uri])
-    import os
+    syscall = subprocess.run(['curl', '-s', '--cookie', token,
+                              '-o', realpath, '-D', headerpath, uri])
+
+    # Check to see that there were no errors in the data service return
     if syscall.returncode != 0 or not os.path.exists(headerpath):
         logger.info('Archive download error')
         aux.archive_status(archive_no, success=False)
         return aux.responder('Server error - File retrieval', 500)
-    
     with open(headerpath, 'r') as f:
         content = f.readlines()
         print(content[0])
         if '200' not in content[0]:
             logger.info('Data service error')
             aux.archive_status(archive_no, success=False)
-            return aux.responder('Server Error - Data service', 500)
+            return aux.responder('Server error - Data service', 500)
 
     # Compress and replace the retrieved dataset on disk
     syscall = subprocess.run(['bzip2', '-f', realpath])
@@ -262,4 +268,13 @@ def create():
     # Archive was successfully created on disk
     logger.info('Created archive number: {0:d}'.format(archive_no))
     aux.archive_status(archive_no=archive_no, success=True)
+
+    # Dispatch email requesting DOI
+    #result = aux.request_doi(archive_no, title)
+    #if result[0] = None:
+    #    logger.info('Server error - Email failure')
+    #else:
+    #    logger.info('DOI email sent')
+
+    # Return 200 OK
     return aux.responder('Success', 200)

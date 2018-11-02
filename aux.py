@@ -17,6 +17,45 @@ def get_config(setting):
     return str(config['environment'][setting])
 
 
+def request_doi(archive_no, title):
+    from email.mime.text import MIMEText
+    from subprocess import Popen, PIPE
+
+    msg = MIMEText('Title: {0:s}\nArchive_no: {1:s}'
+                   .format(title, archive_no))
+
+    msg['From'] = 'me@example.com'
+    msg['To'] = 'you@example.com'
+    msg['Subject'] = 'PBDB archive DOI request'
+
+    p = Popen(['/usr/sbin/sendmail', '-t', '-oi'], stdin=PIPE)
+
+    return p.communicate(msg.as_bytes())
+
+
+def check_for_orcid(ent):
+    """Check to see if a user has a stored ORCID."""
+    import MySQLdb
+
+    db = MySQLdb.connect(host='localhost',
+                         user='jpjenk',
+                         passwd='paleodb',
+                         db='pbdb_wing')
+
+    cursor = db.cursor()
+    sql = """SELECT orcid
+             FROM users
+             WHERE person_no = {0:d}
+          """.format(ent)
+
+    cursor.execute(sql)
+
+    for orcid in cursor:
+        orcid = orcid[0]
+
+    return False if orcid == '' else True
+
+
 def user_info(session_id):
     """Retrieve authorizer and enterer numbers based on browser cookie."""
     import MySQLdb
@@ -25,8 +64,8 @@ def user_info(session_id):
 
     cursor = db.cursor()
     sql = """SELECT authorizer_no, enterer_no
-             from session_data
-             where session_id = '{0:s}'
+             FROM session_data
+             WHERE session_id = '{0:s}'
           """.format(session_id)
 
     cursor.execute(sql)
