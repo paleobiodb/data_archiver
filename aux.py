@@ -21,11 +21,10 @@ def request_doi(archive_no, title):
     from email.mime.text import MIMEText
     from subprocess import Popen, PIPE
 
-    msg = MIMEText('Title: {0:s}\nArchive_no: {1:s}'
-                   .format(title, archive_no))
+    msg = MIMEText(f'Title: {title}\nArchive_no: {archive_no}\nURL:')
 
-    msg['From'] = 'me@example.com'
-    msg['To'] = 'you@example.com'
+    msg['From'] = 'do-not-reply@paleobiodb.org'
+    msg['To'] = 'jpjenk@icloud.com'
     msg['Subject'] = 'PBDB archive DOI request'
 
     p = Popen(['/usr/sbin/sendmail', '-t', '-oi'], stdin=PIPE)

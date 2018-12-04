@@ -89,7 +89,7 @@ def retrieve(archive_no):
         logger.info('Unspecified archive number')
         return aux.responder('Unspecified archive number', 400)
 
-    '''Retrieve give a DOI - Currently disabled
+    '''Retrieve give a DOI - Now handled by the data service
 
     # Retrieve DOI from the parameter list
     doi = request.args.get('doi', default='None', type=str).lower()
@@ -187,9 +187,10 @@ def create():
         return aux.responder('Client error - Invalid session ID', 400)
 
     # Determine if the user has an ORCID
-    #has_orcid = check_for_orcid(ent)
-    #if not has_orcid:
-    #    return aux.responder('Client error - Missing ORCID', 400)
+    has_orcid = aux.check_for_orcid(ent)
+    print(f'Enter ID {ent} has ORCID {has_orcid}')
+    if not has_orcid:
+        return aux.responder('Missing ORCID', 403)
 
     # Extract user entered metadata from payload
     authors = request.json.get('authors', 'Enter No. ' + str(ent))
@@ -252,7 +253,6 @@ def create():
         return aux.responder('Server error - File retrieval', 500)
     with open(headerpath, 'r') as f:
         content = f.readlines()
-        print(content[0])
         if '200' not in content[0]:
             logger.info('Data service error')
             aux.archive_status(archive_no, success=False)
@@ -270,11 +270,12 @@ def create():
     aux.archive_status(archive_no=archive_no, success=True)
 
     # Dispatch email requesting DOI
-    #result = aux.request_doi(archive_no, title)
-    #if result[0] = None:
-    #    logger.info('Server error - Email failure')
-    #else:
-    #    logger.info('DOI email sent')
+    result = aux.request_doi(archive_no, title)
+    print(f'Email response code: {result}')
+    if not result[0]:
+        logger.info('Server error - Email failure')
+    else:
+        logger.info('DOI email sent')
 
     # Return 200 OK
     return aux.responder('Success', 200)
