@@ -89,34 +89,6 @@ def retrieve(archive_no):
         logger.info('Unspecified archive number')
         return aux.responder('Unspecified archive number', 400)
 
-    '''Retrieve give a DOI - Now handled by the data service
-
-    # Retrieve DOI from the parameter list
-    doi = request.args.get('doi', default='None', type=str).lower()
-
-    if doi:
-        # Load DOI:filename map from database
-        doi_map = aux.archive_names()
-
-        # Match the DOI to the archive filename on disk
-        if doi in doi_map.keys():
-            filename = doi_map[doi]
-            logger.info('Retrieve {0:s} - {1:s}'.format(doi, fileneme))
-            return send_from_directory(datapath,
-                                       filename,
-                                       as_attachment=True,
-                                       attachment_filename=filename,
-                                       mimetype='application/x-compressed')
-
-        else:
-            logger.info('ERROR: Invalid DOI specified')
-            return aux.responder('Client error', 400)
-
-    else:
-        logger.info('ERROR: Unspecified DOI')
-        return aux.responder('Client error', 400)
-    '''
-
 
 @app.route('/archives/view/<int:archive_no>', methods=['GET'])
 @cross_origin()
@@ -142,7 +114,6 @@ def delete(archive_no):
 @cross_origin()
 def update(archive_no):
     """Update the archive metadata."""
-    print('Got HERE' + str(archive_no))
     title = request.json.get('title')
     desc = request.json.get('description')
     authors = request.json.get('authors')
@@ -188,7 +159,7 @@ def create():
 
     # Determine if the user has an ORCID
     has_orcid = aux.check_for_orcid(ent)
-    print(f'Enter ID {ent} has ORCID {has_orcid}')
+    logger.info(f'Enter ID {ent} has ORCID {has_orcid}')
     if not has_orcid:
         return aux.responder('Missing ORCID', 403)
 

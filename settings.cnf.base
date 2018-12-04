@@ -7,3 +7,5 @@ password=
 [environment]
 storage=
 dataservice=
+base=
+email=

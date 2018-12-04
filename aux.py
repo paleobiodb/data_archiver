@@ -21,10 +21,16 @@ def request_doi(archive_no, title):
     from email.mime.text import MIMEText
     from subprocess import Popen, PIPE
 
-    msg = MIMEText(f'Title: {title}\nArchive_no: {archive_no}\nURL:')
+    base = get_config('base')
+    email_addr = get_config('email')
+
+    body = f'Title: {title}'
+    body += f'Archive Number: {archive_no}'
+    body += f'URL: {base}/classic/app/archive/view?id=dar:{archive_no}'
+    msg = MIMEText(body)
 
     msg['From'] = 'do-not-reply@paleobiodb.org'
-    msg['To'] = 'jpjenk@icloud.com'
+    msg['To'] = email_addr
     msg['Subject'] = 'PBDB archive DOI request'
 
     p = Popen(['/usr/sbin/sendmail', '-t', '-oi'], stdin=PIPE)
@@ -219,7 +225,6 @@ def archive_status(archive_no, success):
     cursor = db.cursor()
 
     if success:
-        print(archive_no)
         sql = """UPDATE data_archives
                  SET status = '{0:s}'
                  WHERE archive_no = {1:d}
@@ -284,7 +289,6 @@ def get_file_type(archive_no):
         uri_path = uri_path[0]
 
     db.close()
-    print(uri_path)
 
     return uri_path[uri_path.rfind('.'):]
 
