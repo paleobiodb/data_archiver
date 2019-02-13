@@ -24,9 +24,9 @@ def request_doi(archive_no, title):
     base = get_config('base')
     email_addr = get_config('email')
 
-    body = f'Title: {title}'
-    body += f'Archive Number: {archive_no}'
-    body += f'URL: {base}/classic/app/archive/view?id=dar:{archive_no}'
+    body = f'Title: {title}\n'
+    body += f'Archive Number: {archive_no}\n'
+    body += f'URL: {base}/classic/app/archive/view?id={archive_no}\n'
     msg = MIMEText(body)
 
     msg['From'] = 'do-not-reply@paleobiodb.org'
@@ -42,14 +42,11 @@ def check_for_orcid(ent):
     """Check to see if a user has a stored ORCID."""
     import MySQLdb
 
-    db = MySQLdb.connect(host='localhost',
-                         user='jpjenk',
-                         passwd='paleodb',
-                         db='pbdb_wing')
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
 
     cursor = db.cursor()
     sql = """SELECT orcid
-             FROM users
+             FROM pbdb_wing.users
              WHERE person_no = {0:d}
           """.format(ent)
 
