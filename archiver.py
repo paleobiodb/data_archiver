@@ -141,6 +141,7 @@ def create():
     """Create an archive file on disk."""
     import subprocess
     import os
+    from datetime import datetime as dt
     # from urllib.parse import quote
 
     # Attempt to find session_id in the payload (testing only)
@@ -240,8 +241,11 @@ def create():
     logger.info('Created archive number: {0:d}'.format(archive_no))
     aux.archive_status(archive_no=archive_no, success=True)
 
+    # Determine the current year
+    yr = dt.now().year
+
     # Dispatch email requesting DOI
-    result = aux.request_doi(archive_no, title)
+    result = aux.request_doi(archive_no, title, yr, authors)
     print(f'Email response code: {result}')
     if not result[0]:
         logger.info('Server error - Email failure')

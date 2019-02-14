@@ -17,16 +17,23 @@ def get_config(setting):
     return str(config['environment'][setting])
 
 
-def request_doi(archive_no, title):
+def request_doi(archive_no, title, yr, authors):
+    """Dispatch email to specified addresses using UNIX sendmail."""
     from email.mime.text import MIMEText
     from subprocess import Popen, PIPE
 
     base = get_config('base')
     email_addr = get_config('email')
 
-    body = f'Title: {title}\n'
+    body = f'URL: {base}/classic/app/archive/view?id={archive_no}\n'
+    body += f'Creators: {authors}\n'
+    body += f'Title: {title}\n'
+    body += 'Publisher: Paleobiology Database\n'
+    body += f'Publication Year: {yr}\n'
     body += f'Archive Number: {archive_no}\n'
-    body += f'URL: {base}/classic/app/archive/view?id={archive_no}\n'
+    body += 'Resource Type: Dataset\n'
+    body += '========\n'
+    body += f'PBDB Archive Number: {archive_no}\n'
     msg = MIMEText(body)
 
     msg['From'] = 'do-not-reply@paleobiodb.org'
