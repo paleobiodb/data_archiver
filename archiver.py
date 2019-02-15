@@ -102,9 +102,31 @@ def view(archive_no):
 @cross_origin()
 def delete(archive_no):
     """Delete a archive record from the system table."""
+    import subprocess
+
+    # Credential check
     try:
+        session_id = request.cookies.get('session_id')
+        admin_user = aux.admin_check()
+    except Exception as e:
+        logger.info(e)
+        return aux.responder('Client error - Invalid credentials(1)', 400)
+    if not admin_user:
+        return aux.responder('Client error - Invalid credentials(2)', 400)
+
+    try:
+        # Remove DB record
         aux.delete_archive(archive_no)
+
+        # Remove actual data file and data service response header
+        realpath = '/'.join([datapath, str(archive_no)])
+        headerpath = f'{realpath}.header'
+        archivepath = f'{realpath}.bz2'
+        syscall = subprocess.run(['rm', headerpath, archivepath])
+                                  
+        logger.info(f'Files deleted: {headerpath}, {archivepath}')
         return aux.responder('Success', 200)
+
     except Exception as e:
         logger.info('Deletion error: {0:s}'.format(e))
         return aux.responder('Deletion error', 500)
@@ -114,6 +136,17 @@ def delete(archive_no):
 @cross_origin()
 def update(archive_no):
     """Update the archive metadata."""
+
+    # Credential check
+    try:
+        session_id = request.cookies.get('session_id')
+        admin_user = aux.admin_check()
+    except Exception as e:
+        logger.info(e)
+        return aux.responder('Client error - Invalid credentials(1)', 400)
+    if not admin_user:
+        return aux.responder('Client error - Invalid credentials(2)', 400)
+
     title = request.json.get('title')
     desc = request.json.get('description')
     authors = request.json.get('authors')

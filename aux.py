@@ -64,6 +64,25 @@ def check_for_orcid(ent):
 
     return False if orcid == '' else True
 
+def admin_check(session_id):
+    """Validate credentials for update and create."""
+    import MySQLdb
+
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
+
+    cursor = db.cursor()
+    sql = """SELECT admin
+             FROM pbdb_wing.users
+             WHERE id = {0:s}
+          """.format(session_id)
+
+    cursor.execute(sql)
+
+    for admin in cursor:
+        admin = admin[0]
+
+    return False if admin == 0 else True
+
 
 def user_info(session_id):
     """Retrieve authorizer and enterer numbers based on browser cookie."""

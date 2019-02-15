@@ -1,12 +1,11 @@
 [client]
 host='localhost'
 database='pbdb'
-user='pbdbuser'
-password='desk_stop_football_treat'
-socket='/var/tmp/mariadb.sock'
+user='jpjenk'
+password='paleodb'
 
 [environment]
 storage=/data/catalog
 dataservice=http://localhost:3000
-base=https://paleobiodb.org
-email=info@paleobiodb.org,mmcclenn@geology.wisc.edu,jpjenk@icloud.com
+base=https://training.paleobiodb.org
+email=jpjenk@icloud.com
