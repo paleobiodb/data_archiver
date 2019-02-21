@@ -278,7 +278,7 @@ def create():
     yr = dt.now().year
 
     # Dispatch email requesting DOI
-    result = aux.request_doi(archive_no, title, yr, authors)
+    result = aux.request_doi(archive_no, title, yr, authors, ent)
     print(f'Email response code: {result}')
     if not result[0]:
         logger.info('Server error - Email failure')

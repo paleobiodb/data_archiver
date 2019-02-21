@@ -17,13 +17,16 @@ def get_config(setting):
     return str(config['environment'][setting])
 
 
-def request_doi(archive_no, title, yr, authors):
+def request_doi(archive_no, title, yr, authors, ent):
     """Dispatch email to specified addresses using UNIX sendmail."""
     from email.mime.text import MIMEText
     from subprocess import Popen, PIPE
 
+    ent_email = get_ent_email(ent)
+
     base = get_config('base')
-    email_addr = get_config('email')
+    default_emails = get_config('email')
+    email_addr = ','.join([default_emails, ent_email])
 
     body = f'URL: {base}/classic/app/archive/view?id={archive_no}\n'
     body += f'Creators: {authors}\n'
@@ -33,7 +36,9 @@ def request_doi(archive_no, title, yr, authors):
     body += f'Archive Number: {archive_no}\n'
     body += 'Resource Type: Dataset\n'
     body += '========\n'
-    body += f'PBDB Archive Number: {archive_no}\n'
+    body += f'PBDB Archive ID Number: {archive_no}\n'
+    body += 'DOI: PENDING\n'
+
     msg = MIMEText(body)
 
     msg['From'] = 'do-not-reply@paleobiodb.org'
@@ -63,6 +68,27 @@ def check_for_orcid(ent):
         orcid = orcid[0]
 
     return False if orcid == '' else True
+
+
+def get_email_addr(ent):
+    """Retrieve user email from the database."""
+    import MySQLdb
+
+    db = MySQLdb.connect(read_default_file='./settings.cnf')
+
+    cursor = db.cursor()
+    sql = """SELECT email
+             FROM pbdb_wing.users
+             WHERE person_no = {0:d}
+          """.format(ent)
+
+    cursor.execute(sql)
+
+    for orcid in cursor:
+        ent_email = email[0]
+
+    return ent_email
+
 
 def admin_check(session_id):
     """Validate credentials for update and create."""
