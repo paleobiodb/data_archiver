@@ -1,10 +1,15 @@
 from flask import make_response, jsonify
 
 
-def responder(msg, status):
+def responder(msg, status, pbdb_id=None):
     """Format a JSON response."""
-    return make_response(jsonify({'message': msg,
-                                  'status': status}), status)
+    if pbdb_id:
+        return make_response(jsonify({'message': msg,
+                                      'status': status,
+                                      'pbdb_id': pbdb_id}), status)
+    else:
+        return make_response(jsonify({'message': msg,
+                                      'status': status}), status)
 
 
 def get_config(setting):
@@ -22,32 +27,35 @@ def request_doi(archive_no, title, yr, authors, ent):
     from email.mime.text import MIMEText
     from subprocess import Popen, PIPE
 
-    ent_email = get_ent_email(ent)
+    try:
+        ent_email = get_ent_email(ent)
+    
+        base = get_config('base')
+        default_emails = get_config('email')
+        email_addr = ','.join([default_emails, ent_email])
+    
+        body = f'URL: {base}/classic/app/archive/view?id={archive_no}\n'
+        body += f'Creators: {authors}\n'
+        body += f'Title: {title}\n'
+        body += 'Publisher: Paleobiology Database\n'
+        body += f'Publication Year: {yr}\n'
+        body += 'Resource Type: Dataset\n'
+        body += '========\n'
+        body += f'PBDB Archive ID Number: {archive_no}\n'
+        body += 'DOI: Pending\n'
+    
+        msg = MIMEText(body)
+    
+        msg['From'] = 'do-not-reply@paleobiodb.org'
+        msg['To'] = email_addr
+        msg['Subject'] = 'PBDB archive DOI request'
+    
+        p = Popen(['/usr/sbin/sendmail', '-t', '-oi'], stdin=PIPE)
+    
+        return True
 
-    base = get_config('base')
-    default_emails = get_config('email')
-    email_addr = ','.join([default_emails, ent_email])
-
-    body = f'URL: {base}/classic/app/archive/view?id={archive_no}\n'
-    body += f'Creators: {authors}\n'
-    body += f'Title: {title}\n'
-    body += 'Publisher: Paleobiology Database\n'
-    body += f'Publication Year: {yr}\n'
-    body += f'Archive Number: {archive_no}\n'
-    body += 'Resource Type: Dataset\n'
-    body += '========\n'
-    body += f'PBDB Archive ID Number: {archive_no}\n'
-    body += 'DOI: PENDING\n'
-
-    msg = MIMEText(body)
-
-    msg['From'] = 'do-not-reply@paleobiodb.org'
-    msg['To'] = email_addr
-    msg['Subject'] = 'PBDB archive DOI request'
-
-    p = Popen(['/usr/sbin/sendmail', '-t', '-oi'], stdin=PIPE)
-
-    return p.communicate(msg.as_bytes())
+    except exception as e:
+        return e
 
 
 def check_for_orcid(ent):
@@ -70,7 +78,7 @@ def check_for_orcid(ent):
     return False if orcid == '' else True
 
 
-def get_email_addr(ent):
+def get_ent_email(ent):
     """Retrieve user email from the database."""
     import MySQLdb
 
@@ -84,7 +92,7 @@ def get_email_addr(ent):
 
     cursor.execute(sql)
 
-    for orcid in cursor:
+    for email in cursor:
         ent_email = email[0]
 
     return ent_email
@@ -97,15 +105,28 @@ def admin_check(session_id):
     db = MySQLdb.connect(read_default_file='./settings.cnf')
 
     cursor = db.cursor()
+    sql = """SELECT user_id
+             FROM session_data
+             WHERE session_id = '{0:s}'
+          """.format(session_id)
+
+    cursor.execute(sql)
+
+    for user_id in cursor:
+        user_id = user_id[0]
+
+    cursor = db.cursor()
     sql = """SELECT admin
              FROM pbdb_wing.users
-             WHERE id = {0:s}
-          """.format(session_id)
+             WHERE id = '{0:s}'
+          """.format(user_id)
 
     cursor.execute(sql)
 
     for admin in cursor:
         admin = admin[0]
+
+    print(f'admin: {admin}')
 
     return False if admin == 0 else True
 
@@ -360,6 +381,7 @@ def create_record(auth, ent, authors, title, desc, path, args):
         db.commit()
     except Exception as e:
         db.rollback()
+        raise ValueError(e)
 
     db.close()
 
