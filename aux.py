@@ -52,7 +52,7 @@ def request_doi(archive_no, title, yr, authors, ent):
     
         p = Popen(['/usr/sbin/sendmail', '-t', '-oi'], stdin=PIPE)
     
-        return True
+        return p.communicate(msg.as_bytes())
 
     except exception as e:
         return e
@@ -125,8 +125,6 @@ def admin_check(session_id):
 
     for admin in cursor:
         admin = admin[0]
-
-    print(f'admin: {admin}')
 
     return False if admin == 0 else True
 

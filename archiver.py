@@ -164,7 +164,6 @@ def update(archive_no):
 
         # Credential check
         try:
-            print(f'incomming session: {session_id}')
             admin_user = aux.admin_check(session_id)
         except Exception as e:
             logger.info(e)
@@ -311,11 +310,10 @@ def create():
  
         # Dispatch email requesting DOI
         result = aux.request_doi(archive_no, title, yr, authors, ent)
-        print(f'Email response code: {result}')
         if result == 0:
             logger.info('DOI email sent')
         else:
-            logger.info(f'server error - email: {result}')
+            logger.info(f'Server error - Email: {result}')
  
         # Return 200 OK
         return aux.responder('success', 200, archive_no)
