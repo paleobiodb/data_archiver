@@ -1,11 +1,11 @@
 [client]
-host='localhost'
+host='db'
 database='pbdb'
-user=
-password=
+user='pbdbuser'
+password='pbdbpwd'
 
 [environment]
-storage=
-dataservice=
+storage=/data/catalog
+dataservice=http://api:3000
 base=
-email=
+email=info@paleobiodb.org
