@@ -5,7 +5,7 @@ user='pbdbuser'
 password='pbdbpwd'
 
 [environment]
-storage=/data/catalog
+storage=/var/paleobiodb/archives
 dataservice=http://api:3000
 base=
 email=info@paleobiodb.org
