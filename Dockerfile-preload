@@ -1,0 +1,18 @@
+#
+# Paleobiology Database - archiver API image
+# 
+# This file builds the preload image, which has a bunch of necessary packages and
+# takes 45 minutes or more to build. The main Dockerfile then uses this to build
+# the final image by copying in the source code and other local content.
+
+FROM python:3-alpine AS paleobiodb_archiver_preload
+
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+
+COPY pbdb-archiver/requirements.txt /usr/src/app/
+
+RUN apk add python3-dev build-base linux-headers pcre-dev mariadb-dev mariadb-client
+RUN pip install uwsgi
+RUN pip install --no-cache-dir -r requirements.txt
+

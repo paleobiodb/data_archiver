@@ -1,16 +1,8 @@
 #
-# Paleobiology database: archiver API
-
-FROM python:3-alpine AS paleobiodb_archiver_preload
-
-RUN mkdir -p /usr/src/app
-WORKDIR /usr/src/app
-
-COPY pbdb-archiver/requirements.txt /usr/src/app/
-
-RUN apk add python3-dev build-base linux-headers pcre-dev mariadb-dev mariadb-client
-RUN pip install uwsgi
-RUN pip install --no-cache-dir -r requirements.txt
+# Paleobiology database: archiver API image
+# 
+# The image 'paleobiodb_archiver_preload' can be built using the file 'Dockerfile-preload'.
+# See that file for more information.
 
 FROM paleobiodb_archiver_preload
 
