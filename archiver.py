@@ -17,7 +17,7 @@ datapath = aux.get_config('storage')
 # Configure the log file
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-log_handle = logging.FileHandler('archiver.log')
+log_handle = logging.FileHandler('logs/archiver.log')
 log_handle.setLevel(logging.INFO)
 log_format = logging.Formatter('%(asctime)s - %(message)s')
 log_handle.setFormatter(log_format)
